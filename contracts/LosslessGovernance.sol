@@ -541,6 +541,14 @@ contract LosslessGovernance is ILssGovernance, Initializable, AccessControlUpgra
 
     }
 
+    /// @notice This lets an erroneously reported contract account to retrieve compensation
+    /// @dev It is only for contract accounts.
+    function retrieveCompensationByContract() override public whenNotPaused {
+        require(isContract(msg.sender), "LSS: Only contract allowed");
+
+        retrieveCompensation();
+    }
+
     ///@notice This function verifies is an address belongs to a contract
     ///@param _addr address to verify
     function isContract(address _addr) private view returns (bool){
