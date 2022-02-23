@@ -46,6 +46,9 @@ describe(scriptName, () => {
       adr.member3.address,
       adr.member4.address]);
 
+    /**
+     * @dev deploy 3rd-party contract for the testing of retrieveCompensationByContract()
+     */
     const MaliciousContractTester = await ethers.getContractFactory(
       'MaliciousContractTester',
     );
@@ -142,6 +145,9 @@ describe(scriptName, () => {
         await env.lssToken.balanceOf(adr.maliciousActor1.address),
       ).to.be.equal((env.reportingAmount * compensationPercentage) / 100);
 
+      /**
+       * @dev test retrieveCompensationByContract() through 3rd-party contract.
+       */
       await env.lssGovernance.connect(adr.lssAdmin).resolveReport(3);
 
       await expect(
