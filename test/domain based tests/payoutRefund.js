@@ -46,10 +46,19 @@ describe(scriptName, () => {
       adr.member3.address,
       adr.member4.address]);
 
+    /**
+     * @dev deploy 3rd-party contract for the testing of retrieveCompensationByContract()
+     */
+    const MaliciousContractTester = await ethers.getContractFactory(
+      'MaliciousContractTester',
+    );
+    maliciousContract1 = await MaliciousContractTester.deploy(env.lssGovernance.address);
+
     await env.lssToken.connect(adr.lssInitialHolder)
       .transfer(adr.reporter1.address, env.stakingAmount * 3);
     await lerc20Token.connect(adr.lerc20InitialHolder).transfer(adr.maliciousActor1.address, 1000);
     await lerc20Token.connect(adr.lerc20InitialHolder).transfer(reportedToken.address, 1000);
+    await lerc20Token.connect(adr.lerc20InitialHolder).transfer(maliciousContract1.address, 1000);
 
     await env.lssToken.connect(adr.reporter1).approve(env.lssReporting.address, env.stakingAmount * 3);
 
@@ -61,6 +70,8 @@ describe(scriptName, () => {
       .report(lerc20Token.address, adr.maliciousActor1.address);
     await env.lssReporting.connect(adr.reporter1)
       .report(lerc20Token.address, reportedToken.address);
+    await env.lssReporting.connect(adr.reporter1)
+      .report(lerc20Token.address, maliciousContract1.address);
   });
 
   describe('when everyone votes negatively', () => {
@@ -71,6 +82,13 @@ describe(scriptName, () => {
       await env.lssGovernance.connect(adr.member2).committeeMemberVote(1, false);
       await env.lssGovernance.connect(adr.member3).committeeMemberVote(1, false);
       await env.lssGovernance.connect(adr.member4).committeeMemberVote(1, false);
+
+      await env.lssGovernance.connect(adr.lssAdmin).losslessVote(3, false);
+      await env.lssGovernance.connect(adr.lerc20Admin).tokenOwnersVote(3, false);
+      await env.lssGovernance.connect(adr.member1).committeeMemberVote(3, false);
+      await env.lssGovernance.connect(adr.member2).committeeMemberVote(3, false);
+      await env.lssGovernance.connect(adr.member3).committeeMemberVote(3, false);
+      await env.lssGovernance.connect(adr.member4).committeeMemberVote(3, false);
     });
 
     it('should let reported address retrieve compensation', async () => {
@@ -111,6 +129,10 @@ describe(scriptName, () => {
       ).to.be.equal(false);
 
       await expect(
+        env.lssGovernance.connect(adr.maliciousActor1).retrieveCompensationByContract(),
+      ).to.be.revertedWith('LSS: Only contract allowed');
+
+      await expect(
         env.lssGovernance.connect(adr.maliciousActor1).retrieveCompensation(),
       ).to.emit(env.lssGovernance, 'CompensationRetrieval').withArgs(
         adr.maliciousActor1.address,
@@ -122,6 +144,18 @@ describe(scriptName, () => {
       expect(
         await env.lssToken.balanceOf(adr.maliciousActor1.address),
       ).to.be.equal((env.reportingAmount * compensationPercentage) / 100);
+
+      /**
+       * @dev test retrieveCompensationByContract() through 3rd-party contract.
+       */
+      await env.lssGovernance.connect(adr.lssAdmin).resolveReport(3);
+
+      await expect(
+        maliciousContract1.connect(adr.maliciousActor1).triggerRetrieveCompensation(),
+      ).to.emit(env.lssGovernance, 'CompensationRetrieval').withArgs(
+        maliciousContract1.address,
+        20,
+      );
     });
 
     it('should revert if tries to retrieve twice', async () => {
@@ -276,14 +310,14 @@ describe(scriptName, () => {
       await env.lssReporting.connect(adr.reporter1)
         .report(lerc20Token.address, adr.maliciousActor1.address);
 
-      await env.lssGovernance.connect(adr.lssAdmin).losslessVote(3, false);
-      await env.lssGovernance.connect(adr.lerc20Admin).tokenOwnersVote(3, false);
-      await env.lssGovernance.connect(adr.member1).committeeMemberVote(3, false);
-      await env.lssGovernance.connect(adr.member2).committeeMemberVote(3, false);
-      await env.lssGovernance.connect(adr.member3).committeeMemberVote(3, false);
-      await env.lssGovernance.connect(adr.member4).committeeMemberVote(3, false);
+      await env.lssGovernance.connect(adr.lssAdmin).losslessVote(4, false);
+      await env.lssGovernance.connect(adr.lerc20Admin).tokenOwnersVote(4, false);
+      await env.lssGovernance.connect(adr.member1).committeeMemberVote(4, false);
+      await env.lssGovernance.connect(adr.member2).committeeMemberVote(4, false);
+      await env.lssGovernance.connect(adr.member3).committeeMemberVote(4, false);
+      await env.lssGovernance.connect(adr.member4).committeeMemberVote(4, false);
 
-      await env.lssGovernance.connect(adr.lssAdmin).resolveReport(3);
+      await env.lssGovernance.connect(adr.lssAdmin).resolveReport(4);
     });
 
     it('should let the address retrieve compensation twice', async () => {
